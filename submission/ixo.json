@@ -1,9 +1,9 @@
 {
   "name": "ixo",
-  "status": "provisional",
-  "verifiableDataRegistry": "IXO Blockchain (Cosmos SDK), IID Module",
-  "contactName": "Dr Shaun Conway",
-  "contactEmail": "shaun.conway@ixo.world",
-  "contactWebsite": "https://ixo.world",
-  "specification": "https://github.com/ixofoundation/ixo-did-method/blob/main/interchain-identifiers/v1.md"
+  "status": "registered",
+  "verifiableDataRegistry": "IXO Impact Hub",
+  "contactName": "IXO Foundation",
+  "contactEmail": "earthprogram@ixo.world",
+  "contactWebsite": "https://www.ixo.world/",
+  "specification": "https://github.com/ixofoundation/ixo-did-method/blob/main/README.md"
 }
