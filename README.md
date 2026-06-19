@@ -1,67 +1,858 @@
-# IXO DID Method (`did:ixo`)
+# The `did:ixo` DID Method
 
-This repository contains the specification for the `did:ixo` Decentralized Identifier method,
-an implementation of the Interchain Identifier (IID) framework anchored on the IXO blockchain.
+The `did:ixo` DID method defines Decentralized Identifiers for IXO Impact
+Hub domains, accounts, and CosmWasm contracts used by IXO applications. This
+document is the canonical reference for the `did:ixo` method. It reconciles the
+IXO Interchain Identifiers source material with the implemented Impact Hub
+`ixo.iid.v1beta1`, `ixo.entity.v1beta1`, and claims-module identifier
+conventions.
 
-## Specification
+This document provides the canonical DID Method specification URL and W3C DID
+Method Registry entry for the method name `ixo`.
 
-The specification is located at:
+## 1. Conformance
 
-```
-interchain-identifiers/v1.md
-```
+The key words MUST, MUST NOT, REQUIRED, SHOULD, SHOULD NOT, and MAY in this
+document are to be interpreted as described in BCP 14.
 
-It defines the `did:ixo` method, which builds on the
-[W3C DID Core specification](https://www.w3.org/TR/did-core/) and the Interchain Identifier (IID)
-framework originally developed in partnership with the Interchain Foundation.
+Conforming `did:ixo` implementations MUST conform to:
 
-**Upstream source:** The IID v1 specification was originally published at:
-https://github.com/ixofoundation/ixo-protocol/blob/7ee90538b8a01dc3f696c190af62f2f39a866d9d/interchain-identifiers/v1.md
+- [Decentralized Identifiers (DIDs) v1.0](https://www.w3.org/TR/did-1.0/)
+- [DID Extensions registration process](https://www.w3.org/TR/did-extensions/#the-registration-process)
+- [DID Method Rubric v1.0](https://www.w3.org/TR/did-rubric/)
 
-## Quick Reference
+Resolvers for `did:ixo` SHOULD follow the
+[DID Resolution](https://www.w3.org/TR/did-resolution/) interface,
+architecture, error, caching, security, and privacy guidance.
 
-| Property          | Value                                                      |
-|-------------------|------------------------------------------------------------|
-| **Method name**   | `ixo`                                                      |
-| **DID prefix**    | `did:ixo:`                                                 |
-| **DID example**   | `did:ixo:entity:abc123`                                    |
-| **Registry**      | IXO Blockchain (Cosmos SDK)                                |
-| **Status**        | Draft — pending W3C registry submission                    |
-| **JSON-LD context** | `https://w3id.org/ixo/ns/interchain-identifiers/v1`    |
+The pinned Interchain Identifiers document stored at
+[`interchain-identifiers/v1.md`](interchain-identifiers/v1.md) is source
+material and implementation history, not a second normative DID method
+definition. If that document, a JSON-LD context, or any other IXO namespace
+document conflicts with this specification for `did:ixo` syntax, operations,
+resolution, or method-specific semantics, this specification controls.
 
-## Key Features
+The canonical Verifiable Data Registry (VDR) for this method is IXO Impact
+Hub mainnet. Testnet, devnet, and private deployments MAY implement compatible
+resolution for development, but they are not the canonical VDR for `did:ixo`.
 
-- **IID extensions**: Linked Resources, Accorded Rights, Polymorphic Mediators, and more
-- **Privacy-preserving**: Hashgraph proofs obscure the quantity and content of linked resources
-- **Herd privacy**: Single-mediator pattern to prevent subject identification by endpoint
-- **Interchain**: Compatible with the IID family of DID methods across Cosmos chains
-- **zCap support**: Authorization Capabilities (zCaps) for capability delegation and invocation
+## 2. Method Syntax
 
-## W3C Registry Submission
+The DID method name is:
 
-Submission materials are in the `submission/` directory:
-
-- `submission/ixo.json` — Registry entry JSON (copy to `methods/` in `w3c/did-spec-registries`)
-- `submission/self-assessment.md` — Completed self-assessment checklist
-
-See `submission/self-assessment.md` for step-by-step submission instructions.
-
-## Implementations
-
-- **IXO Blockchain**: https://github.com/ixofoundation/ixo-blockchain
-- **IXO Multiclient SDK**: https://github.com/ixofoundation/ixo-multiclient-sdk
-- **IXO Impact Client SDK**: https://www.npmjs.com/package/@ixo/impactxclient-sdk
-
-## DID Resolution
-
-Resolve a `did:ixo` DID using the IXO blockchain REST or gRPC API:
-
-```bash
-# REST (replace with your IXO node endpoint)
-curl https://rpc.ixo.earth/ixo/iid/v1beta1/iidDocuments/did:ixo:entity:abc123
+```text
+ixo
 ```
 
-## License
+A `did:ixo` DID has one of three canonical method-specific identifier forms:
 
-This specification is published under the
-[W3C Software and Document License](https://www.w3.org/Consortium/Legal/2015/copyright-software-and-document).
+```text
+did:ixo:<account>
+did:ixo:entity:<id>
+did:ixo:wasm:<contract-address>
+```
+
+Where:
+
+- `<account>` is a valid lowercase IXO bech32 account address with the `ixo`
+  human-readable prefix, for example `ixo1...`.
+- `<id>` is the opaque lowercase 32-hex identifier generated by the Impact Hub
+  Entity module when an entity domain is created.
+- `<contract-address>` is a valid lowercase IXO bech32 address for an Impact
+  Hub CosmWasm contract.
+
+The method-specific identifier syntax is:
+
+```abnf
+ixo-did        = "did:ixo:" (account-id / entity-id / wasm-id)
+account-id     = ixo-address
+entity-id      = "entity:" 32lowerhex
+wasm-id        = "wasm:" ixo-address
+ixo-address    = "ixo1" 1*bech32char
+lowerhex       = %x30-39 / %x61-66
+bech32char     = "q" / "p" / "z" / "r" / "y" / "9" / "x" / "8" /
+                 "g" / "f" / "2" / "t" / "v" / "d" / "w" / "0" /
+                 "s" / "3" / "j" / "n" / "5" / "4" / "k" / "h" /
+                 "c" / "e" / "6" / "m" / "u" / "a" / "7" / "l"
+```
+
+## 3. Identifier Generation
+
+### 3.1 Account DIDs
+
+An account DID is derived from an IXO blockchain account address:
+
+```text
+did:ixo:<ixo bech32 account address>
+```
+
+Example:
+
+```text
+did:ixo:ixo1pu0z60zttf5h3puk5k6v85hp7qq3yge5eagwxc
+```
+
+The account address is generated by client-side wallet software according to
+the IXO blockchain account and key derivation rules. The DID is not considered
+created until an IID document for the DID has been successfully registered on
+Impact Hub through `ixo.iid.v1beta1.MsgCreateIidDocument`.
+
+Account DID creation MUST be signed by the account named in the DID and the
+created DID document MUST include an authentication verification method
+controlled by that DID. This rule binds DID creation to control of the
+underlying Impact Hub account.
+
+
+### 3.2 Entity DIDs
+
+An entity DID is generated automatically by the Impact Hub Entity module:
+
+```text
+did:ixo:entity:<id>
+```
+
+Example:
+
+```text
+did:ixo:entity:4c73552dbf8a4343016e7f7952836014
+```
+
+Entity DID identifiers are opaque to DID consumers. Implementations MUST NOT
+infer semantics from the entity identifier beyond the `entity` namespace
+segment. The current Impact Hub implementation generates the entity identifier
+inside `ixo.entity.v1beta1.MsgCreateEntity`; DID consumers only rely on the
+returned DID string.
+
+Entity DID creation is controlled by the owner DID supplied in
+`MsgCreateEntity`. The transaction MUST be signed by an Impact Hub account
+authorized by `ownerDid`. The resulting IID document includes the generated
+entity DID and the owner DID as controllers.
+
+### 3.3 CosmWasm Contract DIDs
+
+A CosmWasm contract DID identifies an Impact Hub CosmWasm contract used by IXO
+applications, including claims-module contract adjudicators:
+
+```text
+did:ixo:wasm:<ixo bech32 contract address>
+```
+
+Example:
+
+```text
+did:ixo:wasm:ixo1pu0z60zttf5h3puk5k6v85hp7qq3yge5eagwxc
+```
+
+The identifier is generated from the contract address. A conforming resolver
+MUST resolve a `did:ixo:wasm` DID only when an authoritative DID document or
+contract-backed DID document mapping exists, and MUST otherwise return DID
+resolution metadata `error: "notFound"`. Resolvers MUST NOT synthesize
+verification methods or controllers for a contract DID without an authoritative
+on-chain source.
+
+## 4. DID Documents
+
+The authoritative on-chain object is `ixo.iid.v1beta1.IidDocument`. A resolver
+MUST transform that object into a DID Core compatible DID document.
+
+The resolver MUST include:
+
+- `@context`, with `https://www.w3.org/ns/did/v1` and
+  `https://w3id.org/ixo/ns/did/v1`
+- `id`
+- DID Core controller, verification method, verification relationship, service,
+  and `alsoKnownAs` properties when present on-chain
+- IXO extension properties when present on-chain:
+  - `class`, for entity DID class inheritance
+  - `linkedResource`
+  - `linkedClaim`
+  - `linkedEntity`
+  - `accordedRight`
+
+The resolver MUST serialize DID Core property names using canonical DID JSON
+and JSON-LD names. Where chain proto names differ from DID ecosystem naming,
+the resolver MUST map them to the DID-compatible JSON representation. For
+example, chain `blockchainAccountID` verification material is serialized as
+`blockchainAccountId` in resolved DID documents.
+
+### 4.1 IXO Extension Terms
+
+The IXO DID method uses the DID-specific JSON-LD context
+`https://w3id.org/ixo/ns/did/v1` for method-specific terms in resolved DID
+JSON-LD documents. This context is a vocabulary expansion document only; it is
+not the authoritative DID method specification.
+
+For entity DID documents only, `class` identifies the immediate parent class
+DID for the entity subject. If present, the `class` value MUST be a DID string.
+The property is singular in this version of the method. Canonical DID
+resolution returns the child entity's authoritative on-chain DID document as
+registered, including the `class` link when present, and MUST NOT merge parent
+class properties into the default DID resolution result.
+
+`linkedClaim` identifies a collection of claims, attestations, or credentials associated with
+the DID subject. A linked claim entry can include:
+
+- `id`: URI or DID URL identifying the claim.
+- `type`: claim category or type.
+- `description`: human-readable claim description.
+- `serviceEndpoint`: URI where the claim or claim service can be accessed.
+- `proof`: content identifier, hash, or other proof material.
+- `encrypted`: encryption indicator or reference.
+- `right`: associated accorded right.
+
+`linkedEntity` identifies another DID subject associated with the DID subject.
+A linked entity entry can include:
+
+- `id`: DID or URI of the linked entity.
+- `type`: linked entity category.
+- `relationship`: relationship between the DID subject and linked entity.
+- `service`: service reference associated with the relationship.
+
+The DID-specific IXO context MUST provide machine-readable JSON-LD definitions
+for these terms before W3C DID Extensions submission. The context MUST also
+define any IXO-specific verification method type used by resolved documents,
+including `CosmosAccountAddress` when that type is used with
+`blockchainAccountId` verification material.
+
+Current implementation status as of 2026-06-19: this repository includes the
+proposed DID-specific context at [`ns/did/v1/index.jsonld`](ns/did/v1/index.jsonld).
+`https://w3id.org/ixo/ns/did/v1` currently redirects toward the IXO GitHub
+Pages namespace site, but the final target returns `404` until the context file
+is published there. The older
+`https://w3id.org/ixo/ns/interchain-identifiers/v1` context resolves, but it is
+not fully aligned with this DID method because it exposes legacy
+`blockchainAccountID` rather than the canonical `blockchainAccountId` term. The
+live resolver still emits the older interchain-identifiers context; it MUST be
+updated to emit `https://w3id.org/ixo/ns/did/v1` before IXO claims the live
+resolver is aligned with this specification.
+
+### 4.2 Entity Class and Composite Entity Documents
+
+An entity DID document MAY include a `class` property whose value is another
+DID. The referenced DID is the immediate parent class of the entity. IXO
+services MAY generate a composite Entity Document by resolving the `class`
+chain and applying inherited entity properties from root parent to child.
+
+Composite Entity Documents are IXO service or profile views. They are not the
+canonical DID document returned by default `did:ixo` resolution. If a composite
+Entity Document is returned by an IXO service or by an explicitly requested
+resolution option, the output MUST clearly indicate that it is composed. The
+exact service route, cache behavior, UI presentation, class authoring workflow,
+and complete composite response shape are outside this DID method
+specification.
+
+Composition MUST NOT inherit security-sensitive DID Core fields by default.
+This exclusion includes `controller`, `verificationMethod`, verification
+relationship properties, `service`, `alsoKnownAs`, and DID document metadata.
+Future IXO profiles MAY define stricter or more specialized composition
+behavior, but the default method-level inheritance rule only permits IXO
+extension or entity properties to be inherited.
+
+The default inheritable property set is:
+
+- `linkedResource`
+- `linkedClaim`
+- `linkedEntity`
+- `accordedRight`
+
+The inheritance merge rule is:
+
+1. Resolve the entity's `class` chain from root parent to child.
+2. For each inheritable set property, use the fragment part of an item `id` as
+   the override key when present, for example `#key-01`.
+3. If a child and parent contain the same fragment key, the child item takes
+   precedence over the parent item.
+4. If an item has an `id` without a fragment, use the full `id` value as the
+   override key.
+5. If an item has no `id`, append it to the composite set and do not treat it
+   as overrideable.
+6. Preserve original parent DID URLs in inherited items. Inherited item IDs
+   MUST NOT be rewritten or rebased to the child entity DID.
+
+### 4.3 Example Account DID Document
+
+```json
+{
+  "@context": [
+    "https://www.w3.org/ns/did/v1",
+    "https://w3id.org/ixo/ns/did/v1"
+  ],
+  "id": "did:ixo:ixo1pu0z60zttf5h3puk5k6v85hp7qq3yge5eagwxc",
+  "controller": [
+    "did:ixo:ixo1pu0z60zttf5h3puk5k6v85hp7qq3yge5eagwxc"
+  ],
+  "verificationMethod": [
+    {
+      "id": "did:ixo:ixo1pu0z60zttf5h3puk5k6v85hp7qq3yge5eagwxc#account",
+      "type": "CosmosAccountAddress",
+      "controller": "did:ixo:ixo1pu0z60zttf5h3puk5k6v85hp7qq3yge5eagwxc",
+      "blockchainAccountId": "ixo1pu0z60zttf5h3puk5k6v85hp7qq3yge5eagwxc"
+    }
+  ],
+  "authentication": [
+    "did:ixo:ixo1pu0z60zttf5h3puk5k6v85hp7qq3yge5eagwxc#account"
+  ]
+}
+```
+
+### 4.4 Example Entity DID Document
+
+```json
+{
+  "@context": [
+    "https://www.w3.org/ns/did/v1",
+    "https://w3id.org/ixo/ns/did/v1"
+  ],
+  "id": "did:ixo:entity:4c73552dbf8a4343016e7f7952836014",
+  "class": "did:ixo:entity:32a5a11ebf1ce614a6eb8ef874898eee",
+  "controller": [
+    "did:ixo:entity:4c73552dbf8a4343016e7f7952836014",
+    "did:ixo:ixo1pu0z60zttf5h3puk5k6v85hp7qq3yge5eagwxc"
+  ],
+  "verificationMethod": [
+    {
+      "id": "did:ixo:entity:4c73552dbf8a4343016e7f7952836014#owner",
+      "type": "CosmosAccountAddress",
+      "controller": "did:ixo:ixo1pu0z60zttf5h3puk5k6v85hp7qq3yge5eagwxc",
+      "blockchainAccountId": "ixo1pu0z60zttf5h3puk5k6v85hp7qq3yge5eagwxc"
+    }
+  ],
+  "authentication": [
+    "did:ixo:entity:4c73552dbf8a4343016e7f7952836014#owner"
+  ],
+  "linkedClaim": [
+    {
+      "id": "did:ixo:entity:4c73552dbf8a4343016e7f7952836014#projectCredential",
+      "type": "VerifiableCredential",
+      "description": "Project credential associated with the entity",
+      "serviceEndpoint": "ipfs://bafybeigdyrzt5sfp7udm7hu76woil2q3vu6x27prqtb6cwm7nq5x2m5kxu",
+      "proof": "bafybeigdyrzt5sfp7udm7hu76woil2q3vu6x27prqtb6cwm7nq5x2m5kxu"
+    }
+  ],
+  "linkedEntity": [
+    {
+      "id": "did:ixo:entity:32a5a11ebf1ce614a6eb8ef874898eee",
+      "type": "Protocol",
+      "relationship": "conformsTo",
+      "service": "did:ixo:entity:4c73552dbf8a4343016e7f7952836014#protocol"
+    }
+  ]
+}
+```
+
+## 5. DID Operations
+
+### 5.1 Create
+
+Account DIDs are created with:
+
+```text
+ixo.iid.v1beta1.MsgCreateIidDocument
+```
+
+The message registers a new IID document under the supplied DID. Creation MUST
+fail if an IID document already exists for the DID. The message requires at
+least one verification method and a valid Impact Hub signer address.
+
+Entity DIDs are created with:
+
+```text
+ixo.entity.v1beta1.MsgCreateEntity
+```
+
+The Entity module creates an IID document with the generated entity DID,
+creates the corresponding entity record, and mints the associated entity NFT.
+Creation MUST fail if the generated DID already exists.
+
+### 5.2 Read
+
+Resolvers read DID documents from the IID module:
+
+```text
+ixo.iid.v1beta1.Query/IidDocument
+```
+
+A canonical `did:ixo` read is performed directly against Impact Hub chain
+state through an RPC, gRPC, or gRPC-gateway endpoint exposed by any Impact Hub
+node that provides read access to the IID query service. The node does not need
+to participate in the validator or delegator set. Independent operators MAY run
+read-only Impact Hub nodes for resolution without participating in consensus,
+provided the node follows the canonical Impact Hub mainnet chain.
+
+The gRPC-gateway REST shape for the IID query is:
+
+```text
+GET /ixo/did/dids/{id}
+```
+
+The `{id}` path value MUST be the URL-encoded DID.
+
+If the DID syntax is invalid, the resolver MUST return DID resolution metadata:
+
+```json
+{
+  "error": "invalidDid"
+}
+```
+
+If the DID is syntactically valid but no IID document exists, the resolver MUST
+return DID resolution metadata:
+
+```json
+{
+  "error": "notFound"
+}
+```
+
+Resolvers MUST NOT synthesize DID documents for valid but unregistered IXO
+accounts.
+
+Current implementation status as of 2026-06-19: the on-chain DID-form policy is
+no longer a W3C-submission blocker. IXO-2045 completed on 2026-05-24 with
+signer-to-account binding for `did:ixo:<account>`, canonical DID-form
+validation, `did:ixo:wasm:<contract-address>` acceptance, entity namespace
+reservation, and rejection of foreign or legacy DID forms in
+`MsgCreateIidDocument` on the `v7-upgrade` path. Resolver-side error handling
+has improved and returns `invalidDid` for malformed non-DID inputs, but the
+live resolver still returns `notFound` for some syntactically invalid
+`did:ixo` strings that pass its loose resolver regex, for example
+`did:ixo:notbech32`. If Section 2 remains strict, resolver pre-validation for
+all canonical `did:ixo` forms remains open hardening.
+
+### 5.3 Update
+
+IID documents are updated by the following message family:
+
+```text
+ixo.iid.v1beta1.MsgUpdateIidDocument
+ixo.iid.v1beta1.MsgAddVerification
+ixo.iid.v1beta1.MsgRevokeVerification
+ixo.iid.v1beta1.MsgSetVerificationRelationships
+ixo.iid.v1beta1.MsgAddService
+ixo.iid.v1beta1.MsgDeleteService
+ixo.iid.v1beta1.MsgAddController
+ixo.iid.v1beta1.MsgDeleteController
+ixo.iid.v1beta1.MsgAddLinkedResource
+ixo.iid.v1beta1.MsgDeleteLinkedResource
+ixo.iid.v1beta1.MsgAddLinkedClaim
+ixo.iid.v1beta1.MsgDeleteLinkedClaim
+ixo.iid.v1beta1.MsgAddLinkedEntity
+ixo.iid.v1beta1.MsgDeleteLinkedEntity
+ixo.iid.v1beta1.MsgAddAccordedRight
+ixo.iid.v1beta1.MsgDeleteAccordedRight
+ixo.iid.v1beta1.MsgAddIidContext
+ixo.iid.v1beta1.MsgDeleteIidContext
+```
+
+Updates MUST be authorized by an account represented by a verification method
+in an allowed verification relationship for the DID document. The Impact Hub
+implementation uses authentication relationships for IID document updates.
+
+`MsgUpdateIidDocument` replaces the mutable document field set. Callers that
+use it MUST submit any existing field values they intend to preserve.
+
+Entity metadata is updated by `ixo.entity.v1beta1.MsgUpdateEntity`. Entity
+ownership is transferred by `ixo.entity.v1beta1.MsgTransferEntity`, which
+updates entity control and transfers the entity NFT.
+
+### 5.4 Deactivate
+
+DIDs are deactivated with:
+
+```text
+ixo.iid.v1beta1.MsgDeactivateIID
+```
+
+Deactivation sets the IID document metadata flag `deactivated` to `true`. The
+on-chain IID document is retained. A resolver MUST expose deactivation through
+DID document metadata:
+
+```json
+{
+  "deactivated": true
+}
+```
+
+For deactivated DIDs, a resolver MAY still return the retained DID document,
+but relying parties MUST treat `didDocumentMetadata.deactivated=true` as the
+authoritative deactivation signal.
+
+## 6. DID Resolution
+
+A conforming resolver accepts a DID or DID URL using the `did:ixo` method name
+and returns the DID Core resolution result:
+
+- `didResolutionMetadata`
+- `didDocument`
+- `didDocumentMetadata`
+
+For successful resolution, `didDocument.id` MUST exactly match the resolved
+DID.
+
+Canonical direct resolution rules:
+
+1. Validate DID syntax against Section 2.
+2. Select an Impact Hub mainnet RPC, gRPC, or gRPC-gateway endpoint that exposes
+   the IID query service.
+3. Verify that the endpoint is serving the canonical Impact Hub mainnet chain
+   ID before accepting the response as `did:ixo` chain state.
+4. Query the Impact Hub IID module by the exact DID string.
+5. Return `notFound` if no document exists.
+6. Convert the `IidDocument` proto object into DID Core JSON or JSON-LD.
+7. Move document metadata into `didDocumentMetadata`, including:
+   - `versionId`
+   - `created`
+   - `updated`
+   - `deactivated`
+8. Move IXO method-specific resolution evidence into a method metadata object,
+   including:
+   - `chainId`
+   - `blockHeight`
+   - resolver mode, such as `direct` or `verifiedDirect`
+   - RPC, gRPC, gRPC-gateway, or indexer source identifier when disclosed
+9. Include retrieval time in `didResolutionMetadata` when available.
+10. Preserve DID Core document fields and IXO extension fields when present.
+11. Dereference DID URL fragments against the resolved DID document.
+
+Resolvers SHOULD support:
+
+- `application/did+json`
+- `application/did+ld+json`
+
+If a requested representation is not supported, the resolver MUST return DID
+resolution metadata `error: "representationNotSupported"`.
+
+Current implementation status as of 2026-06-19: `ixo-did-resolver` `v0.1.2`
+was released on 2026-05-26 and the live resolver serves DID resolution results
+as `application/did+ld+json`. It emits canonical `blockchainAccountId`, returns
+`notFound` for unregistered DIDs, and emits `created` / `updated` timestamps
+without sub-second precision. It still emits the older
+`https://w3id.org/ixo/ns/interchain-identifiers/v1` context rather than the
+DID-specific `https://w3id.org/ixo/ns/did/v1` context required by this
+specification. IXO-2335 completed on 2026-05-26 with W3C DID Test Suite
+evidence showing 173/173 normative tests passing across DID identifier,
+production, core property, and resolution suites. The resolver still ignores
+the HTTP `Accept` header and serves DID JSON-LD for unsupported `Accept`
+values; this is not a W3C Method Registry filing blocker if IXO submits the
+method with the current DID JSON-LD resolver behavior, but IXO SHOULD either
+implement full representation negotiation or soften this specification before
+claiming that support.
+
+Resolvers MAY support the W3C `noCache` resolution option. A resolver that
+accepts `noCache=true` MUST bypass local resolver caches and indexed
+intermediaries and retrieve fresh chain state from the canonical VDR, or return
+DID resolution metadata `error: "featureNotSupported"` or the equivalent W3C
+`FEATURE_NOT_SUPPORTED` error object if it cannot perform an uncached read.
+
+### 6.1 Direct and Verified Direct Resolution
+
+Direct resolution is the canonical `did:ixo` resolution architecture. A direct
+resolver obtains the DID document by querying Impact Hub IID state over RPC,
+gRPC, or gRPC-gateway through any read-access node following the canonical
+Impact Hub mainnet chain.
+
+A direct resolver that trusts only the node endpoint is an unverifiable direct
+resolver. It is useful for ordinary application reads, but it inherits trust in
+the selected endpoint for the returned state.
+
+A verified direct resolver is the trustless high-assurance profile for
+`did:ixo` resolution. It can query any read-access node, but it does not trust
+the node operator for correctness. Instead, it verifies the endpoint chain ID
+and verifies the queried state against Impact Hub consensus, for example with
+Tendermint or CometBFT light-client verification and state proofs where
+supported by the queried interface. Resolvers that claim a trustless or
+verified profile MUST expose enough metadata for relying parties to audit the
+source of the result, including chain ID, block height, retrieval time, and
+whether light-client or equivalent verification was applied.
+
+### 6.2 Intermediated and Indexed Resolution
+
+Convenience services MAY provide intermediated `did:ixo` resolution by reading
+from an indexed copy of Impact Hub state rather than querying a chain node for
+each request. The IXO Blocksync service is one such centrally hosted
+intermediary. Blocksync-style services are not the canonical authority for the
+method; they are resolver infrastructure that synchronizes from the canonical
+VDR.
+
+Intermediated resolvers MUST make their mode clear in resolver documentation
+and SHOULD include resolver metadata such as `intermediary`, `sourceChainId`,
+`sourceBlockHeight`, `indexedAt`, and `syncStatus` when returning DID
+resolution results. An intermediated resolver MUST NOT claim stronger freshness
+or authenticity than its indexer synchronization and verification process
+supports.
+
+IXO Blocksync-compatible infrastructure MAY be independently hosted. An
+independent Blocksync deployment MUST sync from Impact Hub chain state and MUST
+preserve the canonical DID document transformation rules in this specification.
+If the indexed service is stale, unavailable, or unable to prove that it has
+processed the relevant block height, clients that require canonical freshness
+SHOULD use direct or verified direct resolution.
+
+### 6.3 DID URL Dereferencing
+
+Resolvers that support DID URL dereferencing MUST resolve the base `did:ixo`
+DID before dereferencing fragments, services, or relative references. Duplicate
+DID URL query parameters MUST be treated as invalid inputs. DID URL query
+parameters used for dereferencing MUST be normalized before caching,
+forwarding, or combining with service endpoints.
+
+When using `relativeRef`, dereferencers MUST apply URI reference resolution
+after percent-decoding the parameter value, reject traversal above the selected
+service endpoint base path, and return an invalid DID URL error for unsafe
+relative references.
+
+## 7. Security Considerations
+
+### 7.1 Controller Binding
+
+Account DID creation MUST prove control of the account named in the DID. This
+prevents one account from registering a DID for another account address.
+
+Entity DID creation MUST be authorized by the supplied owner DID. Entity
+controllers SHOULD rotate or revoke verification methods when ownership or
+operational control changes.
+
+### 7.2 Verification Method Rotation
+
+Verification methods can be added, revoked, or assigned to new relationships
+through IID module update messages. Relying parties SHOULD resolve the current
+DID document before verifying a signature or capability invocation.
+
+### 7.3 Registry Finality
+
+The Impact Hub blockchain provides ordered transaction execution and consensus
+finality according to its consensus protocol. Resolvers SHOULD document the
+node endpoint, chain ID, and finality assumptions they use.
+
+The canonical VDR for `did:ixo` is disambiguated by the Impact Hub mainnet
+chain ID. Resolvers MUST NOT treat state from a fork, testnet, devnet, private
+deployment, or stale index as canonical `did:ixo` state. Testnet, devnet, and
+private deployments MAY expose compatible DID resolution for development, but
+they MUST document their non-canonical chain ID and MUST NOT be advertised as
+the canonical W3C DID method registry target.
+
+### 7.4 Resolver Trust
+
+A direct resolver that queries an RPC, gRPC, or REST endpoint without
+independent verification inherits trust in that endpoint. High-assurance
+deployments SHOULD use the verified direct resolver profile with light-client
+state verification or equivalent proof verification.
+
+An intermediated resolver inherits trust in its indexer, synchronization
+process, hosting operator, and upstream chain reads. Relying parties that need
+fresh canonical state SHOULD prefer direct or verified direct resolution, or
+require the intermediary to disclose source chain ID, source block height, and
+sync status.
+
+Resolvers that cache DID documents SHOULD use normalized DID URLs and
+resolution options as cache keys. If `noCache=true` is accepted, a resolver
+MUST bypass cached or indexed data and query canonical chain state directly, or
+return an explicit feature-not-supported error.
+
+### 7.5 Service Endpoints
+
+Services, linked resources, linked claims, and linked entities can reveal
+relationships, locations, or application metadata. DID controllers SHOULD
+publish only endpoint and graph information they are willing to disclose.
+
+## 8. Privacy Considerations
+
+`did:ixo` DIDs are public on-chain identifiers. Registration, updates,
+controllers, verification methods, services, linked resources, linked claims,
+and linked entities can be visible to observers of Impact Hub state.
+
+Controllers SHOULD:
+
+- Avoid storing personal data directly in DID documents.
+- Prefer content identifiers, hashes, encrypted references, or mediator
+  services for sensitive resources and claims.
+- Use separate DIDs for separate operational contexts when correlation risk is
+  material.
+- Minimize service endpoints that reveal subject classification or operational
+  infrastructure.
+
+Entity DIDs can be associated with public entity records and NFTs. Relying
+parties SHOULD assume entity DID activity is correlatable unless privacy
+preserving application patterns are used.
+
+Network-based resolvers, including centrally hosted Blocksync-style services,
+can log requester IP addresses, queried DIDs, DID URLs, resolution options, and
+timing. Clients that want to reduce profiling risk SHOULD resolve through
+infrastructure they control, use independent read-only nodes where practical,
+or choose an intermediary they trust operationally.
+
+## 9. Implementation References
+
+- IXO IID source basis:
+  <https://github.com/ixofoundation/ixo-protocol/blob/7ee90538b8a01dc3f696c190af62f2f39a866d9d/interchain-identifiers/v1.md>
+- Impact Hub IID proto:
+  <https://github.com/ixofoundation/ixo-blockchain/tree/main/proto/ixo/iid/v1beta1>
+- Impact Hub Entity proto:
+  <https://github.com/ixofoundation/ixo-blockchain/tree/main/proto/ixo/entity/v1beta1>
+- DID-specific IXO JSON-LD context source:
+  [`ns/did/v1/index.jsonld`](ns/did/v1/index.jsonld)
+- DID Core:
+  <https://www.w3.org/TR/did-1.0/>
+- DID Extensions registration process:
+  <https://www.w3.org/TR/did-extensions/#the-registration-process>
+- DID Method Rubric:
+  <https://www.w3.org/TR/did-rubric/>
+- DID Resolution:
+  <https://www.w3.org/TR/did-resolution/>
+
+## 10. W3C Submission Readiness
+
+This section is non-normative. It records the implementation reconciliation
+needed before submitting the `did:ixo` method to the W3C DID Method Registry.
+
+### 10.1 Confirmed Matches
+
+The following parts of this specification match the current chain or resolver
+behavior:
+
+- The gRPC-gateway read shape is `GET /ixo/did/dids/{id}`.
+- IID update message names, replacement semantics, and authentication-based
+  update authorization match the IID keeper behavior.
+- `MsgDeactivateIID` sets `metadata.deactivated=true` and retains the DID
+  document; the resolver surfaces this in `didDocumentMetadata`.
+- Entity-module DIDs are generated as `did:ixo:entity:<32 lowercase hex>`.
+- The deployed resolver baseline uses a trusted Tendermint RPC node, matching
+  the direct-but-not-verified resolver profile in Section 6.1.
+- `ixo-did-resolver` `v0.1.2` was released on 2026-05-26 and includes the
+  2026-05-26 resolver fixes from `v0.1.1`, including context injection and
+  `blockchainAccountId` casing in resolver output.
+- IXO-2045 completed on 2026-05-24. The chain-side account DID control,
+  canonical DID-form validation, `did:ixo:wasm` acceptance, entity namespace
+  reservation, and foreign or legacy form rejection are implemented on the
+  `v7-upgrade` path.
+- IXO-2335 completed on 2026-05-26. The W3C DID Test Suite fork records
+  173/173 normative tests passing for the `did:ixo` method and resolver.
+
+### 10.2 Required Before Submission
+
+The prior chain and resolver-shape blockers are now closed or downgraded. The
+remaining submission blockers are:
+
+- publish the DID-specific context at `https://w3id.org/ixo/ns/did/v1`;
+- update live resolver output to reference the DID-specific context instead of
+  the older interchain-identifiers context;
+- open the W3C DID Extensions PR with the `did:ixo` registry entry.
+
+Before filing the PR, confirm the public specification URL that should be used
+in `methods/ixo.json`. The W3C entry below assumes the canonical specification
+will be published at
+`https://github.com/ixofoundation/ixo-did-method/blob/main/README.md`.
+
+The following reconciliation table distinguishes required pre-submission work
+from follow-up items that should remain tracked so the public specification
+does not over-claim current runtime behavior:
+
+| Area | Latest rollout state | Follow-up |
+| --- | --- | --- |
+| Account DID control | Closed by IXO-2045 on 2026-05-24. `did:ixo:<account>` creation requires the DID account to match the signer on the `v7-upgrade` path. | Verify the v7 upgrade is live before claiming mainnet enforcement. |
+| DID syntax and legacy `did:x:` creation | Closed by IXO-2045 on 2026-05-24. New `MsgCreateIidDocument` calls reject foreign or legacy forms. | Keep any resolver support for legacy `did:x:` as compatibility only, outside the registered method. |
+| `did:ixo:wasm` identifiers | Closed by IXO-2045 on 2026-05-24. The wasm form is accepted as a canonical `did:ixo` form. | Keep resolver behavior aligned with Section 3.3: resolve only with authoritative on-chain mapping; otherwise return `notFound`. |
+| Entity namespace reservation | Closed by IXO-2045 on 2026-05-24. Direct IID creation reserves `did:ixo:entity:...` for the Entity module path. | Verify v7 mainnet deployment before claiming live enforcement. |
+| DID-specific JSON-LD context publication | Open before submission. The repo includes `ns/did/v1/index.jsonld`; `https://w3id.org/ixo/ns/did/v1` redirects toward the IXO GitHub Pages namespace site, but the final target currently returns `404`. | Publish the DID-specific context and point the W3ID redirect at the JSON-LD artifact before filing the W3C PR. |
+| Resolver context URL | Open before submission. Live resolver output still includes `https://w3id.org/ixo/ns/interchain-identifiers/v1`. | Switch resolver output to `https://w3id.org/ixo/ns/did/v1` so DID JSON-LD output matches this method specification. |
+| `blockchainAccountId` resolver casing | Closed by the `ixo-did-resolver` 2026-05-26 release line. Live resolver output uses `blockchainAccountId`. | Keep a regression fixture in the resolver and W3C test-suite evidence. |
+| Representation negotiation | Downgraded from blocker. Live resolver returns `application/did+ld+json` and passes W3C test-suite evidence, but ignores unsupported `Accept` values. | Implement `Accept` handling or soften Section 6 before claiming full negotiation support. |
+| Resolver errors | Partially closed. Malformed non-DID inputs return `invalidDid`; unregistered valid-looking DIDs return `notFound`. | Add strict Section 2 pre-validation so invalid `did:ixo` forms such as `did:ixo:notbech32` return `invalidDid`. |
+| W3C conformance evidence | Closed by IXO-2335 on 2026-05-26 with 173/173 normative tests passing. | Cite `https://github.com/ixoworld/did-test-suite/tree/ixo` and the generated `docs/index.html` report in the PR. |
+
+### 10.3 DID Context Publishing Draft
+
+Publish [`ns/did/v1/index.jsonld`](ns/did/v1/index.jsonld) at:
+
+```text
+https://ixofoundation.github.io/ns/did/v1/index.jsonld
+```
+
+Then configure the W3ID route for `https://w3id.org/ixo/ns/did/v1` to return
+the JSON-LD artifact. If the W3ID rules are scoped under `/ixo/ns`, the rule
+should be:
+
+```apache
+RewriteRule ^did/v1/?$ https://ixofoundation.github.io/ns/did/v1/index.jsonld [R=303,L]
+```
+
+After publishing, verify:
+
+```sh
+curl -I -L https://w3id.org/ixo/ns/did/v1
+curl -L -H 'Accept: application/ld+json' https://w3id.org/ixo/ns/did/v1 | jq '."@context".blockchainAccountId'
+```
+
+### 10.4 W3C PR Draft
+
+Add this file to `w3c/did-extensions` as `methods/ixo.json`:
+
+```json
+{
+  "name": "ixo",
+  "status": "registered",
+  "verifiableDataRegistry": "IXO Impact Hub",
+  "contactName": "IXO Foundation",
+  "contactEmail": "earthprogram@ixo.world",
+  "contactWebsite": "https://www.ixo.world/",
+  "specification": "https://github.com/ixofoundation/ixo-did-method/blob/main/README.md"
+}
+```
+
+Use this PR title:
+
+```text
+Add did:ixo method
+```
+
+Use this PR body:
+
+```markdown
+### DID Method Registration
+
+As a DID method registrant, I have ensured that my DID method registration complies with the following statements:
+
+- [x] The DID Method specification [defines the DID Method Syntax](https://w3c.github.io/did-core/#method-syntax).
+- [x] The DID Method specification [defines the Create, Read, Update, and Deactivate DID Method Operations](https://w3c.github.io/did-core/#method-operations).
+- [x] The DID Method specification [contains a Security Considerations section](https://w3c.github.io/did-core/#security-requirements).
+- [x] The DID Method specification [contains a Privacy Considerations section](https://w3c.github.io/did-core/#privacy-requirements).
+- [x] The JSON file I am submitting has [passed all automated validation tests below](#partial-pull-merging).
+- [x] The JSON file contains a `contactEmail` address [OPTIONAL].
+- [x] The JSON file contains a `verifiableDataRegistry` entry [OPTIONAL].
+
+Additional implementation evidence:
+
+- `ixo-did-resolver` latest release: https://github.com/ixofoundation/ixo-did-resolver/releases/tag/v0.1.2
+- DID-specific JSON-LD context: https://w3id.org/ixo/ns/did/v1
+- W3C DID Test Suite fork and implementation evidence: https://github.com/ixoworld/did-test-suite/tree/ixo
+- Test-suite result recorded by IXO-2335: 173/173 normative tests passing across DID identifier, DID production, DID Core properties, and DID resolution suites.
+```
+
+### 10.5 Linear Comment Draft
+
+If the next update is posted to IXO-1305 instead of opening the W3C PR
+immediately, use this exact comment:
+
+```markdown
+Chain and resolver-shape reconciliation is complete. The remaining IXO-1305 blockers are publishing the DID-specific JSON-LD context, switching resolver output to that context URL, and opening the W3C registry PR.
+
+Closed/downgraded blockers:
+
+- IXO-2045 completed on 2026-05-24: account DID signer binding, canonical `did:ixo` form validation, `did:ixo:wasm` acceptance, entity namespace reservation, and rejection of foreign/legacy direct IID creation are implemented on the `v7-upgrade` path.
+- IXO-2335 completed on 2026-05-26: W3C DID Test Suite evidence shows 173/173 normative tests passing. Evidence branch: https://github.com/ixoworld/did-test-suite/tree/ixo
+- `ixo-did-resolver` `v0.1.2` was released on 2026-05-26: latest resolver output includes canonical `blockchainAccountId`, `application/did+ld+json`, `notFound` for unregistered DIDs, and DID Core-compatible timestamp precision.
+- This repo now carries the proposed DID-specific context at `ns/did/v1/index.jsonld`; `https://w3id.org/ixo/ns/did/v1` currently routes toward the IXO GitHub Pages namespace site but returns 404 until the artifact is published.
+
+Remaining required work before the W3C PR:
+
+- Publish `ns/did/v1/index.jsonld` to `https://ixofoundation.github.io/ns/did/v1/index.jsonld` and configure the W3ID redirect for `https://w3id.org/ixo/ns/did/v1` to that JSON-LD artifact.
+- Update resolver output to include `https://w3id.org/ixo/ns/did/v1` instead of `https://w3id.org/ixo/ns/interchain-identifiers/v1`.
+
+Remaining non-blocking follow-ups to track after the PR is opened:
+
+- Either implement strict `Accept` negotiation or soften the spec before claiming full representation negotiation support.
+- Add resolver pre-validation so invalid `did:ixo` forms such as `did:ixo:notbech32` return `invalidDid` instead of `notFound`.
+- Verify the v7 upgrade is live before saying account binding/entity reservation are enforced on mainnet.
+
+Next action: publish the DID-specific context, update the resolver context URL, then open a W3C DID Extensions PR adding `methods/ixo.json` with method name `ixo`, VDR `IXO Impact Hub`, and the public `did:ixo` specification URL.
+```
