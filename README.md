@@ -208,17 +208,42 @@ A linked entity entry can include:
 - `relationship`: relationship between the DID subject and linked entity.
 - `service`: service reference associated with the relationship.
 
+`linkedResource` identifies a resource associated with the DID subject. A
+linked resource entry can include:
+
+- `id`: URI or content identifier for the resource.
+- `type`: resource category or type.
+- `description`: human-readable resource description.
+- `mediaType`: MIME type of the resource.
+- `serviceEndpoint`: URI where the resource can be accessed.
+- `proof`: content hash or other proof material.
+- `encrypted`: encryption indicator or reference.
+- `right`: associated accorded right identifier.
+
+`accordedRight` identifies a right accorded to the DID subject. An accorded
+right entry can include:
+
+- `id`: URI or DID URL identifying the right.
+- `type`: right category or type.
+- `mechanism`: the mechanism by which the right is accorded.
+- `message`: message associated with the right.
+- `service`: service reference for the right.
+
 The DID-specific IXO context MUST provide machine-readable JSON-LD definitions
 for these terms before W3C DID Extensions submission. The context MUST also
 define any IXO-specific verification method type used by resolved documents,
 including `CosmosAccountAddress` when that type is used with
 `blockchainAccountId` verification material.
 
-Current implementation status as of 2026-06-19: this repository includes the
-proposed DID-specific context at [`ns/did/v1/index.jsonld`](ns/did/v1/index.jsonld).
-`https://w3id.org/ixo/ns/did/v1` currently redirects toward the IXO GitHub
-Pages namespace site, but the final target returns `404` until the context file
-is published there. The older
+Current implementation status as of 2026-06-19: the DID-specific context is
+now published at [`ns/did/v1/index.jsonld`](ns/did/v1/index.jsonld) and is
+accessible at `https://ixofoundation.github.io/ns/did/v1/index.jsonld` with
+`Content-Type: application/ld+json`. The `https://w3id.org/ixo/ns/did/v1`
+redirect chain resolves (via `https://w3id.org/ixo/did/v1`) to the GitHub
+Pages namespace site, but the final redirect lands on the directory HTML index
+rather than the JSON-LD artifact; the W3ID redirect for
+`https://w3id.org/ixo/did/v1` must be updated to point directly to the
+`/index.jsonld` file. The older
 `https://w3id.org/ixo/ns/interchain-identifiers/v1` context resolves, but it is
 not fully aligned with this DID method because it exposes legacy
 `blockchainAccountID` rather than the canonical `blockchainAccountId` term. The
@@ -731,17 +756,24 @@ behavior:
 ### 10.2 Required Before Submission
 
 The prior chain and resolver-shape blockers are now closed or downgraded. The
-remaining submission blockers are:
+remaining submission blocker is:
 
-- publish the DID-specific context at `https://w3id.org/ixo/ns/did/v1`;
-- update live resolver output to reference the DID-specific context instead of
-  the older interchain-identifiers context;
-- open the W3C DID Extensions PR with the `did:ixo` registry entry.
+- update live resolver output to reference the DID-specific context
+  (`https://w3id.org/ixo/ns/did/v1`) instead of the older
+  interchain-identifiers context.
 
-Before filing the PR, confirm the public specification URL that should be used
-in `methods/ixo.json`. The W3C entry below assumes the canonical specification
-will be published at
-`https://github.com/ixofoundation/ixo-did-method/blob/main/README.md`.
+Resolved as of 2026-06-19:
+
+- The DID-specific context is now published at
+  `https://ixofoundation.github.io/ns/did/v1/index.jsonld`. The
+  `https://w3id.org/ixo/ns/did/v1` redirect chain resolves but lands on the
+  directory HTML index; the W3ID redirect for `https://w3id.org/ixo/did/v1`
+  must be updated to point to the `/index.jsonld` artifact. Submit a PR to
+  `w3c/w3id.org`.
+- The W3C DID Extensions PR is open at
+  <https://github.com/w3c/did-extensions/pull/725>. The canonical specification
+  URL `https://github.com/ixofoundation/ixo-did-method/blob/main/README.md` is
+  confirmed in `methods/ixo.json`.
 
 The following reconciliation table distinguishes required pre-submission work
 from follow-up items that should remain tracked so the public specification
@@ -753,30 +785,32 @@ does not over-claim current runtime behavior:
 | DID syntax and legacy `did:x:` creation | Closed by IXO-2045 on 2026-05-24. New `MsgCreateIidDocument` calls reject foreign or legacy forms. | Keep any resolver support for legacy `did:x:` as compatibility only, outside the registered method. |
 | `did:ixo:wasm` identifiers | Closed by IXO-2045 on 2026-05-24. The wasm form is accepted as a canonical `did:ixo` form. | Keep resolver behavior aligned with Section 3.3: resolve only with authoritative on-chain mapping; otherwise return `notFound`. |
 | Entity namespace reservation | Closed by IXO-2045 on 2026-05-24. Direct IID creation reserves `did:ixo:entity:...` for the Entity module path. | Verify v7 mainnet deployment before claiming live enforcement. |
-| DID-specific JSON-LD context publication | Open before submission. The repo includes `ns/did/v1/index.jsonld`; `https://w3id.org/ixo/ns/did/v1` redirects toward the IXO GitHub Pages namespace site, but the final target currently returns `404`. | Publish the DID-specific context and point the W3ID redirect at the JSON-LD artifact before filing the W3C PR. |
+| DID-specific JSON-LD context publication | Partially closed. Context is published at `https://ixofoundation.github.io/ns/did/v1/index.jsonld`. The `https://w3id.org/ixo/ns/did/v1` redirect chain resolves but lands on the directory HTML index rather than the JSON-LD artifact. | Update the W3ID redirect for `https://w3id.org/ixo/did/v1` to point directly to the `/index.jsonld` file. Submit PR to `w3c/w3id.org`. |
 | Resolver context URL | Open before submission. Live resolver output still includes `https://w3id.org/ixo/ns/interchain-identifiers/v1`. | Switch resolver output to `https://w3id.org/ixo/ns/did/v1` so DID JSON-LD output matches this method specification. |
 | `blockchainAccountId` resolver casing | Closed by the `ixo-did-resolver` 2026-05-26 release line. Live resolver output uses `blockchainAccountId`. | Keep a regression fixture in the resolver and W3C test-suite evidence. |
 | Representation negotiation | Downgraded from blocker. Live resolver returns `application/did+ld+json` and passes W3C test-suite evidence, but ignores unsupported `Accept` values. | Implement `Accept` handling or soften Section 6 before claiming full negotiation support. |
 | Resolver errors | Partially closed. Malformed non-DID inputs return `invalidDid`; unregistered valid-looking DIDs return `notFound`. | Add strict Section 2 pre-validation so invalid `did:ixo` forms such as `did:ixo:notbech32` return `invalidDid`. |
 | W3C conformance evidence | Closed by IXO-2335 on 2026-05-26 with 173/173 normative tests passing. | Cite `https://github.com/ixoworld/did-test-suite/tree/ixo` and the generated `docs/index.html` report in the PR. |
 
-### 10.3 DID Context Publishing Draft
+### 10.3 DID Context Publishing Status
 
-Publish [`ns/did/v1/index.jsonld`](ns/did/v1/index.jsonld) at:
+The DID-specific context is published at:
 
 ```text
 https://ixofoundation.github.io/ns/did/v1/index.jsonld
 ```
 
-Then configure the W3ID route for `https://w3id.org/ixo/ns/did/v1` to return
-the JSON-LD artifact. If the W3ID rules are scoped under `/ixo/ns`, the rule
-should be:
+The `https://w3id.org/ixo/ns/did/v1` redirect chain currently resolves to the
+GitHub Pages namespace directory index (HTML) rather than the JSON-LD artifact.
+The W3ID rule for `https://w3id.org/ixo/did/v1` must be updated to point
+directly to the `/index.jsonld` file. To fix, submit a PR to `w3c/w3id.org`
+updating the `/ixo/did/v1` redirect rule:
 
 ```apache
 RewriteRule ^did/v1/?$ https://ixofoundation.github.io/ns/did/v1/index.jsonld [R=303,L]
 ```
 
-After publishing, verify:
+Verify the fix with:
 
 ```sh
 curl -I -L https://w3id.org/ixo/ns/did/v1
@@ -830,29 +864,29 @@ Additional implementation evidence:
 
 ### 10.5 Linear Comment Draft
 
-If the next update is posted to IXO-1305 instead of opening the W3C PR
-immediately, use this exact comment:
+The W3C PR is now open at <https://github.com/w3c/did-extensions/pull/725>. If a
+follow-up update is posted to IXO-1305, use this comment:
 
 ```markdown
-Chain and resolver-shape reconciliation is complete. The remaining IXO-1305 blockers are publishing the DID-specific JSON-LD context, switching resolver output to that context URL, and opening the W3C registry PR.
+The W3C PR is open at https://github.com/w3c/did-extensions/pull/725. The remaining IXO-1305 blocker is switching live resolver output to the DID-specific context URL.
 
-Closed/downgraded blockers:
+Closed/downgraded blockers as of 2026-06-19:
 
 - IXO-2045 completed on 2026-05-24: account DID signer binding, canonical `did:ixo` form validation, `did:ixo:wasm` acceptance, entity namespace reservation, and rejection of foreign/legacy direct IID creation are implemented on the `v7-upgrade` path.
 - IXO-2335 completed on 2026-05-26: W3C DID Test Suite evidence shows 173/173 normative tests passing. Evidence branch: https://github.com/ixoworld/did-test-suite/tree/ixo
 - `ixo-did-resolver` `v0.1.2` was released on 2026-05-26: latest resolver output includes canonical `blockchainAccountId`, `application/did+ld+json`, `notFound` for unregistered DIDs, and DID Core-compatible timestamp precision.
-- This repo now carries the proposed DID-specific context at `ns/did/v1/index.jsonld`; `https://w3id.org/ixo/ns/did/v1` currently routes toward the IXO GitHub Pages namespace site but returns 404 until the artifact is published.
+- DID-specific context published at `https://ixofoundation.github.io/ns/did/v1/index.jsonld`. The `https://w3id.org/ixo/ns/did/v1` redirect chain resolves but lands on the directory HTML index; a PR to `w3c/w3id.org` is needed to point the redirect directly to the `/index.jsonld` artifact.
+- W3C DID Extensions PR opened: https://github.com/w3c/did-extensions/pull/725
 
-Remaining required work before the W3C PR:
+Remaining required work:
 
-- Publish `ns/did/v1/index.jsonld` to `https://ixofoundation.github.io/ns/did/v1/index.jsonld` and configure the W3ID redirect for `https://w3id.org/ixo/ns/did/v1` to that JSON-LD artifact.
 - Update resolver output to include `https://w3id.org/ixo/ns/did/v1` instead of `https://w3id.org/ixo/ns/interchain-identifiers/v1`.
 
-Remaining non-blocking follow-ups to track after the PR is opened:
+Remaining non-blocking follow-ups:
 
 - Either implement strict `Accept` negotiation or soften the spec before claiming full representation negotiation support.
 - Add resolver pre-validation so invalid `did:ixo` forms such as `did:ixo:notbech32` return `invalidDid` instead of `notFound`.
 - Verify the v7 upgrade is live before saying account binding/entity reservation are enforced on mainnet.
 
-Next action: publish the DID-specific context, update the resolver context URL, then open a W3C DID Extensions PR adding `methods/ixo.json` with method name `ixo`, VDR `IXO Impact Hub`, and the public `did:ixo` specification URL.
+Next action: update the resolver context URL, then request review on the open W3C DID Extensions PR.
 ```
