@@ -715,7 +715,7 @@ or choose an intermediary they trust operationally.
 - Impact Hub Entity proto:
   <https://github.com/ixofoundation/ixo-blockchain/tree/main/proto/ixo/entity/v1beta1>
 - DID-specific IXO JSON-LD context source:
-  [`ns/did/v1/index.jsonld`](ns/did/v1/index.jsonld)
+  <https://w3id.org/ixo/ns/did/v1/index.jsonld>
 - DID Core:
   <https://www.w3.org/TR/did-1.0/>
 - DID Extensions registration process:
